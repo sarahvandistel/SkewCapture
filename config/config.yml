@@ -27,4 +27,8 @@ signals:
 
 # Signal Logging Configuration
 raw_signals_dir: data/raw
-signal_log_csv: data/raw/all_signals_log.csv 
+signal_log_csv: data/raw/all_signals_log.csv
+
+# Analysis Configuration
+realized_vol_windows: [10, 20, 60]
+momentum_windows: [10, 30, 60] 
