@@ -1,0 +1,4 @@
+ib_async>=0.4.0
+PyYAML
+pandas
+schedule 
