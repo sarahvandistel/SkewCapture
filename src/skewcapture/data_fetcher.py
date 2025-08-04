@@ -1,60 +1,81 @@
-"""
-Data fetching from Interactive Brokers and Barchart CSV files.
-"""
-
-import asyncio
 import pandas as pd
-from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import datetime, date
-
+from ib_async import IB, Stock, util
 
 class DataFetcher:
-    """Fetches data from IB API and Barchart CSV files."""
-    
-    def __init__(self, config):
-        self.config = config
-    
-    async def fetch_ib_data(self, symbols: List[str], target_date: date) -> Dict:
-        """Fetch data from Interactive Brokers API."""
-        # TODO: Implement IB API integration
-        pass
-    
-    def fetch_barchart_data(self, target_date: date) -> pd.DataFrame:
-        """Load Barchart data from CSV file for a given date."""
-        data_dir = Path(self.config.get('barchart.data_dir', 'data/barchart'))
-        filename_pattern = self.config.get('barchart.filename_pattern', 
-                                        'stocks-screener-skewcapture-screener-{MM}-{DD}-{YYYY}.csv')
-        
-        # Format filename with date
-        filename = filename_pattern.format(
-            MM=target_date.strftime('%m'),
-            DD=target_date.strftime('%d'),
-            YYYY=target_date.strftime('%Y')
+    """
+    Fetches historical price data for underlyings using Interactive Brokers via ib_async.
+    """
+    def __init__(self, cfg):
+        # cfg should include keys: ib_host, ib_port, ib_client_id, ib_exchange, ib_currency
+        self.cfg = cfg
+        self.ib = IB()
+        self.ib.connect(
+            cfg['ib_host'],
+            cfg['ib_port'],
+            clientId=cfg['ib_client_id']
         )
-        
-        filepath = data_dir / filename
-        
-        if not filepath.exists():
-            raise FileNotFoundError(f"Barchart CSV file not found: {filepath}")
-        
-        try:
-            df = pd.read_csv(filepath)
-            print(f"Loaded Barchart data from {filepath}")
-            return df
-        except Exception as e:
-            raise Exception(f"Error reading Barchart CSV file {filepath}: {e}")
-    
-    def fetch_signals(self, target_date: date) -> Dict:
-        """Fetch signals for a given date."""
-        # Load Barchart data
-        barchart_data = self.fetch_barchart_data(target_date)
-        
-        # TODO: Process Barchart data into signals
-        # TODO: Fetch IB data if needed
-        
-        return {
-            'date': target_date,
-            'barchart_data': barchart_data,
-            'signals': {}  # TODO: Implement signal processing
-        } 
+
+    def fetch_price_data(self, tickers, duration_str=None):
+        """
+        Fetch daily historical data for a list of tickers.
+
+        Args:
+            tickers (List[str]): List of stock symbols.
+            duration_str (str): IB duration string, e.g., '3 Y'.
+                                 If None, uses cfg['historical_duration'].
+
+        Returns:
+            pd.DataFrame: Combined DataFrame with columns [date, open, high, low, close, volume, average, symbol].
+        """
+        duration = duration_str or self.cfg.get('historical_duration', '3 Y')
+        all_data = []
+
+        for symbol in tickers:
+            # Clean up symbol for IB compatibility
+            clean_symbol = symbol.replace('.', ' ')  # Replace periods with spaces
+            if (clean_symbol.strip() == '' or 
+                'Downloaded from Barchart.com' in clean_symbol or
+                'Downloaded from Barchart com' in clean_symbol):
+                continue  # Skip empty symbols or footer lines
+                
+            contract = Stock(
+                clean_symbol,
+                self.cfg.get('ib_exchange', 'SMART'),
+                self.cfg.get('ib_currency', 'USD')
+            )
+            try:
+                bars = self.ib.reqHistoricalData(
+                    contract,
+                    endDateTime='',
+                    durationStr=duration,
+                    barSizeSetting='1 day',
+                    whatToShow='TRADES',
+                    useRTH=True
+                )
+                df = util.df(bars) if bars else pd.DataFrame()
+                if df is not None and not df.empty:
+                    df = df.rename(columns={
+                        'date': 'date',
+                        'open': 'open',
+                        'high': 'high',
+                        'low': 'low',
+                        'close': 'close',
+                        'volume': 'volume',
+                        'average': 'average'
+                    })
+                    df['symbol'] = symbol
+                    all_data.append(df)
+            except Exception as e:
+                print(f"Error fetching data for {symbol}: {e}")
+                continue
+
+        if all_data:
+            result = pd.concat(all_data, ignore_index=True)
+            result['date'] = pd.to_datetime(result['date'])
+            return result
+        else:
+            return pd.DataFrame()
+
+    def disconnect(self):
+        """Disconnect from IB client."""
+        self.ib.disconnect()

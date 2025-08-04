@@ -1,0 +1,26 @@
+# SkewCapture Configuration Template
+# Copy this file to config.yml and fill in your credentials
+
+# Interactive Brokers API Configuration
+ib_host: 127.0.0.1
+ib_port: 4001  # IB Gateway port
+ib_client_id: 1
+ib_exchange: SMART
+ib_currency: USD
+historical_duration: 3 Y
+
+# Barchart Data Configuration
+barchart:
+  data_dir: data/barchart  # Directory containing manual CSV files
+  filename_pattern: "stocks-screener-skewcapture-screener-{MM}-{DD}-{YYYY}.csv"
+
+# Data Configuration
+data:
+  output_dir: data/raw
+  processed_dir: data/processed
+  date_format: "%Y%m%d"
+
+# Signal Configuration
+signals:
+  snapshot_time: "03:53"
+  symbols: []  # Add your symbols here 
