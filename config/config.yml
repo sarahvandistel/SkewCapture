@@ -23,4 +23,8 @@ data:
 # Signal Configuration
 signals:
   snapshot_time: "03:53"
-  symbols: []  # Add your symbols here 
+  symbols: []  # Add your symbols here
+
+# Signal Logging Configuration
+raw_signals_dir: data/raw
+signal_log_csv: data/raw/all_signals_log.csv 

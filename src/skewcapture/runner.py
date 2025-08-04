@@ -27,8 +27,12 @@ class Runner:
         if target_date is None:
             target_date = date.today()
         
-        # TODO: Implement daily snapshot logic
-        print(f"Running daily snapshot for {target_date}")
+        # Run signal logging
+        date_str = target_date.strftime('%Y-%m-%d')
+        logger = SignalLogger(self.config.config)
+        logger.log(date_str)
+        
+        print(f"Completed daily snapshot for {target_date}")
     
     def schedule_daily_run(self):
         """Schedule daily run at configured time."""
